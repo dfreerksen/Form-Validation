@@ -2,13 +2,16 @@
 
 class MY_Form_validation extends CI_Form_validation {
 
-	protected $ci;
+	protected $CI;
 
 	function __construct()
 	{
 		parent::__construct();
 
-		$this->ci =& get_instance();
+		$this->CI =& get_instance();
+
+		// Load validation model
+		$this->CI->load->model('validation_model');
 	}
 
 	// ------------------------------------------------------------------------
@@ -23,7 +26,7 @@ class MY_Form_validation extends CI_Form_validation {
 	{
 		$special = '!@#$%*-_=+.';
 
-		$this->ci->form_validation->set_message('pci_password', 'For PCI compliance, %s must be between 6 and 99 characters in length, must not contain two consecutively repeating characters, contain at least one upper-case letter, at least one lower-case letter, at least one number, and at least one special character ('.$special.')');
+		$this->CI->form_validation->set_message('pci_password', 'For PCI compliance, %s must be between 6 and 99 characters in length, must not contain two consecutively repeating characters, contain at least one upper-case letter, at least one lower-case letter, at least one number, and at least one special character');
 
 		return (preg_match('/^(?=^.{6,99}$)(?=.*[0-9])(?=.*[A-Z])(?=.*[a-z])(?=.*['.$special.'])(?!.*?(.)\1{1,})^.*$/', $str)) ? TRUE : FALSE;
 	}
@@ -42,12 +45,9 @@ class MY_Form_validation extends CI_Form_validation {
 	{
 		list($table, $column) = explode(',', $field, 2);
 
-		$this->ci->form_validation->set_message('unique', 'The %s that you requested is already in use.');
+		$this->CI->form_validation->set_message('unique', 'The %s that you requested is already in use.');
 
-		$query = $this->ci->db->query("SELECT COUNT(*) AS dupe FROM {$this->ci->db->dbprefix($table)} WHERE {$column} = '{$str}'");
-		$row = $query->row();
-
-		return ($row->dupe > 0) ? FALSE : TRUE;
+		return $this->CI->validation_model->is_unique($table, $column, $str);
 	}
 
 	// ------------------------------------------------------------------------
@@ -63,12 +63,9 @@ class MY_Form_validation extends CI_Form_validation {
 	{
 		list($table, $column, $field, $id) = explode(',', $field, 4);
 
-		$this->ci->form_validation->set_message('unique_except', 'The %s that you requested is already in use.');
+		$this->CI->form_validation->set_message('unique_except', 'The %s that you requested is already in use.');
 
-		$query = $this->ci->db->query("SELECT COUNT(*) AS dupe FROM {$this->ci->db->dbprefix($table)} WHERE {$column} = '$str' AND {$field} <> {$id}");
-		$row = $query->row();
-
-		return ($row->dupe > 0) ? FALSE : TRUE;
+		return $this->CI->validation_model->is_unique_except($table, $column, $str, $field, $id);
 	}
 
 	// ------------------------------------------------------------------------
@@ -84,16 +81,16 @@ class MY_Form_validation extends CI_Form_validation {
 	{
 		list($fld, $val) = explode(',', $field, 2);
 
-		$this->ci->form_validation->set_message('required_if', 'The %s field is required.');
+		$this->CI->form_validation->set_message('required_if', 'The %s field is required.');
 
 		// $fld is filled out
-		if (isset($_POST[$fld]))
+		if ($this->CI->input->get_post($fld))
 		{
 			// Must have specific value
 			if ($val)
 			{
 				// Not the specific value we are looking for
-				if ($_POST[$fld] == $val AND ! $str)
+				if ($this->CI->input->get_post($fld) == $val AND ! $str)
 				{
 					return FALSE;
 				}
